@@ -17,10 +17,10 @@ image_path = sys.argv[2]
 
 image = data.imread(image_path)
 IS_GREY = (len(image.shape) == 2)
-HORIZONTAL_TILES = 100
+HORIZONTAL_TILES = 200
 
 tiles = []
-tiles_mean = []
+tile_means = []
 for file in listdir(tiles_path):
     filepath = path.join(tiles_path, file)
 
@@ -32,9 +32,10 @@ for file in listdir(tiles_path):
 
     im_mean = np.mean(im, axis=(0, 1))
     if IS_GREY: im_mean = [np.mean(im_mean)]
-    tiles_mean.append(im_mean)
+    tile_means.append(im_mean)
 
-tiles_mean_tree = KDTree(tiles_mean, leafsize=1)
+print('making a KDTree from tile means')
+tile_means_tree = KDTree(tile_means)
 
 (tile_y, tile_x) = tiles[0].shape[0:2]
 mosaic_shape = [0, 0]
@@ -43,12 +44,12 @@ mosaic_shape[0] = ceil(mosaic_shape[1] * image.shape[0] / image.shape[1]) # y
 mosaic_shape[0] = mosaic_shape[0] + tile_y - (mosaic_shape[0] % tile_y) # y
 if not IS_GREY: mosaic_shape.append(image.shape[2]) # color
 mosaic_shape = tuple(mosaic_shape)
-print(image.shape)
-print((tile_y, tile_x))
-print(mosaic_shape)
 
 VERTICAL_TILES = mosaic_shape[0] / tile_y
 
+print('image original shape (%d, %d)' % image.shape[0:2])
+print('tile shape (%d, %d)' % (tile_y, tile_x))
+print('resize image to shape (%d, %d)' % mosaic_shape[0:2])
 image = resize(image, mosaic_shape, preserve_range=True)
 mosaic = np.zeros(mosaic_shape, dtype=np.uint8)
 for y in range(0, mosaic_shape[0], tile_y):
@@ -57,7 +58,7 @@ for y in range(0, mosaic_shape[0], tile_y):
         mean = np.mean(image[y:y+tile_y, x:x+tile_x], axis=(0, 1))
         if IS_GREY: mean = [mean]
 
-        (smallest_distance, smallest_distance_index) = tiles_mean_tree.query(mean)
+        (smallest_distance, smallest_distance_index) = tile_means_tree.query(mean)
 
         mosaic[y:y+tile_y, x:x+tile_x] = tiles[smallest_distance_index]
 
